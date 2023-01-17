@@ -69,6 +69,9 @@ type ParseError = {
 };
 
 function isParseError(obj: any): obj is ParseError {
+    if (! obj) {
+        return false
+    }
     return 'error' in obj;
 }
 
