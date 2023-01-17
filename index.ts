@@ -50,7 +50,7 @@ function isParseError(obj: any): obj is ParseError {
 
 type ColumnType = {
   type: TypeKind;
-  child?: ColumnType;
+  children: Array<ColumnType>;
   isNumeric: boolean;
   isNullable: boolean;
 };
@@ -67,6 +67,7 @@ function parseColumnTypeByTokens(tokens: Array<string>): ColumnType | ParseError
 
     let columnType: ColumnType = {
         type: typeKind,
+        children: [],
         isNumeric: isNumericType(typeKind),
         isNullable: isNullableType(typeKind),
     }
@@ -78,7 +79,7 @@ function parseColumnTypeByTokens(tokens: Array<string>): ColumnType | ParseError
         if (isParseError(r)) {
             return r;
         }
-        columnType.child = r as ColumnType
+        columnType.children = [r as ColumnType]
     }
 
     return columnType
@@ -96,10 +97,10 @@ function parseColumnType(t: string, unwrapNullable: boolean): ColumnType | Parse
     }
 
     if (unwrapNullable && isNullableType(r.type)) {
-        if (!r.child) {
+        if (r.children.length == 0) {
             return { error: "invalid_type", message: "no child type in Nullable" }
         }
-        r = r.child as ColumnType;
+        r = r.children[0];
         r.isNullable = true
     }
 
@@ -110,4 +111,5 @@ console.log(parseTypeKind("nullable"));
 console.log(parseTypeKind("blah"));
 console.log(isNumericType(TypeKind.String));
 console.log(parseColumnType("Nullable(Array(UInt32))", true));
+console.log(parseColumnType("Nullable(Array(Nullable(UInt32)))", true));
 console.log(parseColumnType("Array(UInt32)", true));
