@@ -16,6 +16,7 @@ enum TypeKind {
     String = "string",
     Array = "array",
     Nullable = "nullable",
+    Tuple = "tuple",
 }
 
 function parseTypeKind(s: string): TypeKind | undefined {
@@ -32,7 +33,7 @@ function isNumericType(t: TypeKind): boolean {
 }
 
 function isComposedType(t: TypeKind): boolean {
-    return [TypeKind.Array, TypeKind.Nullable].includes(t)
+    return [TypeKind.Array, TypeKind.Tuple, TypeKind.Nullable].includes(t)
 }
 
 function isNullableType(t: TypeKind): boolean {
@@ -127,6 +128,7 @@ function parseColumnTypeInner(tokener: Tokener): ColumnType | ParseError {
             if (t !== ",") {
                 break
             }
+            tokener.nextToken()
         }
         let rparen = parseExpectedToken(tokener, ")")
         if (isParseError(rparen)) {
@@ -160,10 +162,7 @@ function parseColumnType(t: string, unwrapNullable: boolean): ColumnType | Parse
     return r
 }
 
-console.log("abc(bcd(eft,xxx))".match(/\w+|\(|\)|,/g))
-console.log(parseTypeKind("nullable"));
-console.log(parseTypeKind("blah"));
-console.log(isNumericType(TypeKind.String));
-console.log(parseColumnType("Nullable(Array(UInt32))", true));
-console.log(parseColumnType("Nullable(Array(Nullable(UInt32)))", true));
-console.log(parseColumnType("Array(UInt32)", true));
+// console.log(parseColumnType("Nullable(Array(Nullable(UInt32)))", true));
+
+let t = parseColumnType("Nullable(Array(Tuple(UInt32, UInt16)))", true) as ColumnType;
+console.log(t.children[0]);
