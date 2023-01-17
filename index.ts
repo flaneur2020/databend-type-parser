@@ -39,6 +39,23 @@ function isNullableType(t: TypeKind): boolean {
     return TypeKind.Nullable === t;
 }
 
+type Tokener = {
+    current: string,
+    tokens: Array<string>,
+    eof: boolean,
+}
+
+function nextToken(tokener: Tokener): Tokener {
+    if (tokener.tokens.length == 0) {
+        return { current: tokener.current, tokens: [], eof: true };
+    }
+    let t = tokener.tokens[0];
+    tokener.tokens = tokener.tokens.slice(1, tokener.tokens.length);
+    tokener.current = t;
+    tokener.eof = tokener.tokens.length == 0
+    return tokener;
+}
+
 type ParseError = {
     error: "unknown_type" | "eof" | "todo" | "empty_input" | "invalid_type";
     message?: string;
@@ -55,14 +72,14 @@ type ColumnType = {
   isNullable: boolean;
 };
 
-function parseColumnTypeByTokens(tokens: Array<string>): ColumnType | ParseError {
-    if (tokens.length == 0) {
+function parseColumnTypeByTokens(tokener: Tokener): ColumnType | ParseError {
+    if (tokener.eof) {
         return { error: "eof" }
     }
 
-    let typeKind = parseTypeKind(tokens[0])
+    let typeKind = parseTypeKind(tokener.current)
     if (!typeKind) {
-        return { error: "unknown_type", message: `unknown type ${tokens[0]}` }
+        return { error: "unknown_type", message: `unknown type ${tokener.current}` }
     }
 
     let columnType: ColumnType = {
@@ -73,9 +90,7 @@ function parseColumnTypeByTokens(tokens: Array<string>): ColumnType | ParseError
     }
 
     if (isComposedType(typeKind)) {
-        let nextTokens = tokens.slice(1, tokens.length);
-        console.log(`tokens: ${tokens}, next Tokens: ${nextTokens}`);
-        let r = parseColumnTypeByTokens(nextTokens)
+        let r = parseColumnTypeByTokens(tokener)
         if (isParseError(r)) {
             return r;
         }
@@ -86,12 +101,13 @@ function parseColumnTypeByTokens(tokens: Array<string>): ColumnType | ParseError
 }
 
 function parseColumnType(t: string, unwrapNullable: boolean): ColumnType | ParseError {
-    let tokens = t.match(/\w+/g)
-    if (!tokens) {
+    let tokens = t.match(/\w+|\(|\)|,/g)
+    if (!tokens || tokens.length == 0) {
         return { error: "empty_input" }
     }
 
-    let r = parseColumnTypeByTokens(tokens)
+    let lexer = { current: tokens[0], tokens: tokens.slice(1, tokens.length), eof: false }
+    let r = parseColumnTypeByTokens(lexer)
     if (isParseError(r)) {
         return r;
     }
@@ -107,6 +123,7 @@ function parseColumnType(t: string, unwrapNullable: boolean): ColumnType | Parse
     return r
 }
 
+console.log("abc(bcd(eft,xxx))".match(/\w+|\(|\)|,/g))
 console.log(parseTypeKind("nullable"));
 console.log(parseTypeKind("blah"));
 console.log(isNumericType(TypeKind.String));
