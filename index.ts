@@ -11,6 +11,7 @@ enum TypeKind {
     Float64 = "Float64",
     Variant = "Variant",
     JSON = "JSON",
+    Date = "Date"
     String = "String",
     Array = "Array",
     Nullable = "Nullable",
