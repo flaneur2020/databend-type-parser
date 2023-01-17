@@ -39,25 +39,32 @@ function isNullableType(t: TypeKind): boolean {
     return TypeKind.Nullable === t;
 }
 
-type Tokener = {
-    current: string,
-    tokens: Array<string>,
-    eof: boolean,
-}
+class Tokener {
+    tokens: Array<string>;
 
-function nextToken(tokener: Tokener): Tokener {
-    if (tokener.tokens.length == 0) {
-        return { current: tokener.current, tokens: [], eof: true };
+    constructor(tokens: Array<string>) {
+        this.tokens = tokens;
     }
-    let t = tokener.tokens[0];
-    tokener.tokens = tokener.tokens.slice(1, tokener.tokens.length);
-    tokener.current = t;
-    tokener.eof = tokener.tokens.length == 0
-    return tokener;
+
+    nextToken(): string | undefined {
+        if (this.tokens.length == 0) {
+            return undefined;
+        }
+        let t = this.tokens[0];
+        this.tokens = this.tokens.slice(1, this.tokens.length);
+        return t;
+    }
+
+    peekToken(): string | undefined {
+        if (this.tokens.length == 0) {
+            return undefined;
+        }
+        return this.tokens[0];
+    }
 }
 
 type ParseError = {
-    error: "unknown_type" | "eof" | "todo" | "empty_input" | "invalid_type";
+    error: "unknown_type" | "unexpected_token" | "eof" | "todo" | "empty_input" | "invalid_type";
     message?: string;
 };
 
@@ -72,14 +79,25 @@ type ColumnType = {
   isNullable: boolean;
 };
 
-function parseColumnTypeByTokens(tokener: Tokener): ColumnType | ParseError {
-    if (tokener.eof) {
+function parseExpectedToken(tokener: Tokener, want: string): ParseError | undefined {
+    let t = tokener.nextToken()
+    if (! t) {
+        return { error: "eof" }
+    }
+    if (t !== want) {
+        return { error: "unexpected_token", message: `expected ${want}, but got ${t}` }
+    }
+}
+
+function parseColumnTypeInner(tokener: Tokener): ColumnType | ParseError {
+    let token = tokener.nextToken()
+    if (! token) {
         return { error: "eof" }
     }
 
-    let typeKind = parseTypeKind(tokener.current)
+    let typeKind = parseTypeKind(token)
     if (!typeKind) {
-        return { error: "unknown_type", message: `unknown type ${tokener.current}` }
+        return { error: "unknown_type", message: `unknown type ${token}` }
     }
 
     let columnType: ColumnType = {
@@ -90,11 +108,27 @@ function parseColumnTypeByTokens(tokener: Tokener): ColumnType | ParseError {
     }
 
     if (isComposedType(typeKind)) {
-        let r = parseColumnTypeByTokens(tokener)
-        if (isParseError(r)) {
-            return r;
+        let lparen = parseExpectedToken(tokener, "(")
+        if (isParseError(lparen)) {
+            return lparen;
         }
-        columnType.children = [r as ColumnType]
+
+        while (true) {
+            let childColumnType = parseColumnTypeInner(tokener)
+            if (isParseError(columnType)) {
+                return columnType;
+            }
+            columnType.children.push(childColumnType as ColumnType)
+
+            let t = tokener.peekToken()
+            if (t !== ",") {
+                break
+            }
+        }
+        let rparen = parseExpectedToken(tokener, ")")
+        if (isParseError(rparen)) {
+            return rparen;
+        }
     }
 
     return columnType
@@ -106,8 +140,8 @@ function parseColumnType(t: string, unwrapNullable: boolean): ColumnType | Parse
         return { error: "empty_input" }
     }
 
-    let lexer = { current: tokens[0], tokens: tokens.slice(1, tokens.length), eof: false }
-    let r = parseColumnTypeByTokens(lexer)
+    let tokener = new Tokener(tokens)
+    let r = parseColumnTypeInner(tokener)
     if (isParseError(r)) {
         return r;
     }
