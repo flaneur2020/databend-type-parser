@@ -1,29 +1,34 @@
 enum TypeKind {
-    Int8 = "Int8",
-    Int16 = "Int16",
-    Int32 = "Int32",
-    Int64 = "Int64",
-    UInt8 = "UInt8",
-    UInt16 = "UInt16",
-    UInt32 = "UInt32",
-    UInt64 = "UInt64",
-    Float32 = "Float32",
-    Float64 = "Float64",
-    Variant = "Variant",
-    JSON = "JSON",
-    Date = "Date"
-    String = "String",
-    Array = "Array",
-    Nullable = "Nullable",
+    Int8 = "int8",
+    Int16 = "int16",
+    Int32 = "int32",
+    Int64 = "int64",
+    UInt8 = "uint8",
+    UInt16 = "uint16",
+    UInt32 = "uint32",
+    UInt64 = "uint64",
+    Float32 = "float32",
+    Float64 = "float64",
+    Variant = "fariant",
+    JSON = "json",
+    Date = "date",
+    Timestamp = "timestamp",
+    String = "string",
+    Array = "array",
+    Nullable = "nullable",
 }
 
-function parseTypeKind(t: string): TypeKind | undefined {
-    return (<any>TypeKind)[t];
+function parseTypeKind(s: string): TypeKind | undefined {
+    let t = s.toLowerCase()
+    if (Object.values(TypeKind).includes(t as TypeKind)) {
+        return t as TypeKind;
+    }
+    return undefined;
 }
 
 function isNumericType(t: TypeKind): boolean {
-    let typeString: string = TypeKind[t];
-    return typeString.includes("Int") || typeString.includes("Float") || typeString.includes("decimal");
+    let typeString: string = t as string;
+    return typeString.includes("int") || typeString.includes("float") || typeString.includes("decimal");
 }
 
 function isComposedType(t: TypeKind): boolean {
@@ -101,7 +106,7 @@ function parseColumnType(t: string, unwrapNullable: boolean): ColumnType | Parse
     return r
 }
 
-console.log(parseTypeKind("Nullable"));
+console.log(parseTypeKind("nullable"));
 console.log(parseTypeKind("blah"));
 console.log(isNumericType(TypeKind.String));
 console.log(parseColumnType("Nullable(Array(UInt32))", true));
