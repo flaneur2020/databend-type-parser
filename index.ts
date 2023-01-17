@@ -29,8 +29,12 @@ function isComposedType(t: TypeKind): boolean {
     return [TypeKind.Array, TypeKind.Nullable].includes(t)
 }
 
+function isNullableType(t: TypeKind): boolean {
+    return TypeKind.Nullable === t;
+}
+
 type ParseError = {
-    error: "unknown_type" | "eof" | "todo" | "empty_input";
+    error: "unknown_type" | "eof" | "todo" | "empty_input" | "invalid_type";
     message?: string;
 };
 
@@ -42,6 +46,7 @@ type ColumnType = {
   type: TypeKind;
   child?: ColumnType;
   isNumeric: boolean;
+  isNullable: boolean;
 };
 
 function parseColumnTypeByTokens(tokens: Array<string>): ColumnType | ParseError {
@@ -57,6 +62,7 @@ function parseColumnTypeByTokens(tokens: Array<string>): ColumnType | ParseError
     let columnType: ColumnType = {
         type: typeKind,
         isNumeric: isNumericType(typeKind),
+        isNullable: isNullableType(typeKind),
     }
 
     if (isComposedType(typeKind)) {
@@ -72,16 +78,30 @@ function parseColumnTypeByTokens(tokens: Array<string>): ColumnType | ParseError
     return columnType
 }
 
-function parseColumnType(t: string): ColumnType | ParseError {
+function parseColumnType(t: string, unwrapNullable: boolean): ColumnType | ParseError {
     let tokens = t.match(/\w+/g)
     if (!tokens) {
         return { error: "empty_input" }
     }
-    return parseColumnTypeByTokens(tokens)
+
+    let r = parseColumnTypeByTokens(tokens)
+    if (isParseError(r)) {
+        return r;
+    }
+
+    if (unwrapNullable && isNullableType(r.type)) {
+        if (!r.child) {
+            return { error: "invalid_type", message: "no child type in Nullable" }
+        }
+        r = r.child as ColumnType;
+        r.isNullable = true
+    }
+
+    return r
 }
 
 console.log(parseTypeKind("Nullable"));
 console.log(parseTypeKind("blah"));
 console.log(isNumericType(TypeKind.String));
-console.log(parseColumnType("Nullable(Array(UInt32))"));
-console.log(parseColumnType("Array(UInt32)"));
+console.log(parseColumnType("Nullable(Array(UInt32))", true));
+console.log(parseColumnType("Array(UInt32)", true));
